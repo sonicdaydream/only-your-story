@@ -1,10 +1,9 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-
 export async function POST(req: NextRequest) {
   try {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const origin = req.headers.get("origin") ?? "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
