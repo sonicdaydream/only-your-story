@@ -13,6 +13,29 @@ const LOADING_MSGS = [
   "この物語はまだ誰も読んでいません…",
 ];
 
+const DAILY_LIMIT = 5;
+const GEN_KEY = "oys_gen";
+
+function getJSTDateStr(): string {
+  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${jst.getUTCFullYear()}-${String(jst.getUTCMonth() + 1).padStart(2, "0")}-${String(jst.getUTCDate()).padStart(2, "0")}`;
+}
+
+function loadGenCount(): number {
+  try {
+    const raw = localStorage.getItem(GEN_KEY);
+    if (!raw) return 0;
+    const { d, c } = JSON.parse(raw);
+    return d === getJSTDateStr() ? (c ?? 0) : 0;
+  } catch { return 0; }
+}
+
+function saveGenCount(count: number) {
+  try {
+    localStorage.setItem(GEN_KEY, JSON.stringify({ d: getJSTDateStr(), c: count }));
+  } catch {}
+}
+
 function stripMarkdown(text: string): string {
   return text
     .replace(/^#{1,6}\s*/gm, "")
@@ -66,6 +89,9 @@ export default function Home() {
   const [shareUrl, setShareUrl] = useState("");
   const [shareLoading, setShareLoading] = useState(false);
   const [toast, setToast] = useState("");
+  const [showBackConfirm, setShowBackConfirm] = useState(false);
+  const [genCount, setGenCount] = useState(0);
+  const remaining = DAILY_LIMIT - genCount;
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [savedStories, setSavedStories] = useState<SavedStory[]>([]);
   const [shelfStory, setShelfStory] = useState<SavedStory | null>(null);
@@ -79,6 +105,7 @@ export default function Home() {
       if (localStorage.getItem("oys_visited")) setScreen("select");
     } catch {}
     setSavedStories(loadSavedStories());
+    setGenCount(loadGenCount());
   }, []);
 
   const downloadPdf = async (s: SavedStory, e: React.MouseEvent) => {
@@ -151,6 +178,12 @@ export default function Home() {
         body: JSON.stringify({ categoryId: c.id }),
       });
       clearInterval(mi);
+      if (res.status === 429) {
+        setGenCount(DAILY_LIMIT);
+        saveGenCount(DAILY_LIMIT);
+        setError("本日の生成上限に達しました。明日またお越しください。");
+        return;
+      }
       if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       const raw: string = data.text ?? "";
@@ -163,6 +196,9 @@ export default function Home() {
       }
       setTitle(parsedTitle);
       setStory(stripMarkdown(lines.slice(bodyStart).join("\n")));
+      const next = loadGenCount() + 1;
+      setGenCount(next);
+      saveGenCount(next);
     } catch {
       clearInterval(mi);
       setError("生成に失敗しました。もう一度お試しください。");
@@ -358,29 +394,38 @@ export default function Home() {
           }}>
             物語をお選びください
           </div>
+          {remaining <= 0 && (
+            <p style={{ fontSize: "0.7rem", color: "#8a4030", fontFamily: MINCHO, letterSpacing: "0.08em", lineHeight: 2, textAlign: "center", marginBottom: "0.8rem", padding: "0.8rem", border: "1px solid rgba(150,60,40,0.2)", background: "rgba(150,60,40,0.05)" }}>
+              本日の生成上限に達しました。<br />明日またお越しください。
+            </p>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
             {CATEGORIES.map((c, i) => (
               <button
                 key={c.id}
-                onClick={() => generate(c)}
+                onClick={() => remaining > 0 && generate(c)}
+                disabled={remaining <= 0}
                 style={{
                   background: "rgba(255,255,255,0.02)",
                   border: "1px solid rgba(255,255,255,0.07)",
-                  color: "#b0a090", padding: "1rem 1.2rem", textAlign: "left",
+                  color: remaining <= 0 ? "#4a3828" : "#b0a090",
+                  padding: "1rem 1.2rem", textAlign: "left",
                   display: "flex", alignItems: "center", gap: "0.9rem",
-                  fontFamily: MINCHO, transition: "all 0.22s", cursor: "pointer",
+                  fontFamily: MINCHO, transition: "all 0.22s",
+                  cursor: remaining <= 0 ? "not-allowed" : "pointer",
+                  opacity: remaining <= 0 ? 0.45 : 1,
                   animationDelay: `${i * 0.08}s`,
                 }}
-                onMouseEnter={e => {
+                onMouseEnter={remaining > 0 ? e => {
                   e.currentTarget.style.background = `${c.theme.accent}14`;
                   e.currentTarget.style.borderColor = `${c.theme.accent}44`;
                   e.currentTarget.style.color = c.theme.accent;
-                }}
-                onMouseLeave={e => {
+                } : undefined}
+                onMouseLeave={remaining > 0 ? e => {
                   e.currentTarget.style.background = "rgba(255,255,255,0.02)";
                   e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
                   e.currentTarget.style.color = "#b0a090";
-                }}
+                } : undefined}
               >
                 <span style={{ fontSize: "0.55rem", letterSpacing: "0.3em", color: t.textMuted, fontFamily: "'Courier New',monospace", textTransform: "uppercase", minWidth: "3.5rem", flexShrink: 0 }}>
                   {c.id}
@@ -393,6 +438,11 @@ export default function Home() {
               </button>
             ))}
           </div>
+          <div style={{ marginTop: "1.2rem", textAlign: "center" }}>
+            <span style={{ fontSize: "0.58rem", color: remaining <= 0 ? "#8a4030" : "#4a3828", fontFamily: "'Courier New',monospace", letterSpacing: "0.15em" }}>
+              {remaining <= 0 ? "LIMIT REACHED" : `本日あと${remaining}回`}
+            </span>
+          </div>
         </div>
       )}
 
@@ -400,7 +450,13 @@ export default function Home() {
       {screen === "reading" && cat && (
         <div style={{ width: "100%", maxWidth: 480, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.2rem 1.5rem 0" }}>
-            <button onClick={() => setScreen("select")} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.65rem", fontFamily: MINCHO, letterSpacing: "0.1em", cursor: "pointer" }}>← 戻る</button>
+            <button onClick={() => {
+              if (story && !shared) {
+                setShowBackConfirm(true);
+              } else {
+                setScreen("select");
+              }
+            }} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.65rem", fontFamily: MINCHO, letterSpacing: "0.1em", cursor: "pointer" }}>← 戻る</button>
             <div style={{ fontSize: "0.5rem", letterSpacing: "0.4em", color: t.textMuted, fontFamily: "'Courier New',monospace" }}>ONLY YOUR STORY</div>
             <div style={{ fontSize: "0.62rem", color: t.accent, fontFamily: "'Courier New',monospace", letterSpacing: "0.15em" }}>{cat.label}</div>
           </div>
@@ -427,10 +483,12 @@ export default function Home() {
             )}
             {error && !loading && (
               <div style={{ textAlign: "center" }}>
-                <p style={{ color: t.textMuted, fontSize: "0.8rem", marginBottom: "1.5rem" }}>{error}</p>
-                <button onClick={() => generate(cat)} style={{ background: "transparent", border: `1px solid ${t.accentSoft}`, color: t.text, padding: "0.8rem 1.5rem", fontFamily: MINCHO, fontSize: "0.75rem", letterSpacing: "0.1em", cursor: "pointer" }}>
-                  再生成する
-                </button>
+                <p style={{ color: remaining <= 0 ? "#8a4030" : t.textMuted, fontSize: "0.8rem", marginBottom: "1.5rem", lineHeight: 2, letterSpacing: "0.06em" }}>{error}</p>
+                {remaining > 0 && (
+                  <button onClick={() => generate(cat)} style={{ background: "transparent", border: `1px solid ${t.accentSoft}`, color: t.text, padding: "0.8rem 1.5rem", fontFamily: MINCHO, fontSize: "0.75rem", letterSpacing: "0.1em", cursor: "pointer" }}>
+                    再生成する
+                  </button>
+                )}
               </div>
             )}
             {story && !loading && (
@@ -519,6 +577,30 @@ export default function Home() {
               </button>
               <button onClick={() => setShowShare(false)} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.68rem", fontFamily: MINCHO, letterSpacing: "0.1em", padding: "0.5rem", cursor: "pointer" }}>
                 やっぱりやめる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ 戻る確認モーダル ━━━ */}
+      {showBackConfirm && cat && (
+        <div onClick={() => setShowBackConfirm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#0e0a08", borderTop: `1px solid ${t.accent}30`, padding: "2rem 1.8rem 2.5rem", width: "100%", maxWidth: 480, animation: "modal-in 0.3s ease", boxShadow: `0 -20px 60px ${t.accent}12` }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", marginBottom: "1.8rem" }}>
+              <div style={{ writingMode: "vertical-rl", fontSize: "0.88rem", color: t.text, lineHeight: 2, letterSpacing: "0.15em", height: 140, display: "flex", alignItems: "center", justifyContent: "center", textShadow: `0 0 20px ${t.accent}20` }}>
+                この物語は、まだ世界に存在していません。
+              </div>
+              <p style={{ fontSize: "0.7rem", color: t.textMuted, letterSpacing: "0.08em", lineHeight: 2, textAlign: "center" }}>
+                シェアも保存もせずに戻ると、<br />この物語は永遠に失われます。
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+              <button onClick={() => { setShowBackConfirm(false); setScreen("select"); }} style={{ background: "transparent", border: `1px solid rgba(150,80,60,0.4)`, color: "#8a5040", padding: "0.9rem", fontSize: "0.75rem", letterSpacing: "0.12em", fontFamily: MINCHO, cursor: "pointer" }}>
+                戻る（物語を消す）
+              </button>
+              <button onClick={() => setShowBackConfirm(false)} style={{ background: t.accent, border: "none", color: "#000", padding: "1rem", fontSize: "0.8rem", letterSpacing: "0.15em", fontFamily: MINCHO, fontWeight: 700, boxShadow: `0 0 18px ${t.accent}40`, cursor: "pointer" }}>
+                やっぱり残す
               </button>
             </div>
           </div>

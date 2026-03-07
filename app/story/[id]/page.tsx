@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { supabase, type SharedStory } from "@/lib/supabase";
 import { getCategoryById, DEFAULT_THEME } from "@/lib/categories";
+import { AdUnit } from "@/components/AdUnit";
 import type { Metadata } from "next";
 
 const MINCHO =
@@ -178,6 +179,9 @@ export default async function StoryPage({ params }: Props) {
             {s.content}
           </div>
         </div>
+
+        {/* 広告枠 */}
+        <AdUnit />
 
         {/* フッター */}
         <div
