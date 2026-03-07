@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @page {
+    size: A5 portrait;
+    margin: 0;
+  }
+
+  html, body {
+    width: 148mm;
+    height: auto;
+    background: #0e0a06;
+    color: #c8b8a8;
+    font-family: 'Noto Serif JP', 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+  }
+
+  .page {
+    width: 148mm;
+    min-height: 210mm;
+    padding: 14mm 12mm 12mm 12mm;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: visible;
+  }
+
+  /* 上部メタ情報 */
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8mm;
+    padding-bottom: 3mm;
+    border-bottom: 0.3pt solid rgba(200,168,122,0.25);
+  }
+
+  .brand {
+    font-size: 5.5pt;
+    letter-spacing: 0.45em;
+    color: #4a3020;
+    font-family: 'Courier New', monospace;
+  }
+
+  .category {
+    font-size: 6pt;
+    letter-spacing: 0.2em;
+    color: {{ACCENT_COLOR}};
+    font-family: 'Courier New', monospace;
+    opacity: 0.8;
+  }
+
+  /* 本文エリア */
+  .story-area {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 7mm;
+  }
+
+  /* タイトル縦組み */
+  .title-col {
+    writing-mode: vertical-rl;
+    font-size: 11pt;
+    font-weight: 400;
+    color: {{ACCENT_COLOR}};
+    letter-spacing: 0.22em;
+    text-shadow: 0 0 12px {{ACCENT_GLOW}};
+    border-right: 0.5pt solid {{ACCENT_BORDER}};
+    padding-right: 5mm;
+    flex-shrink: 0;
+    line-height: 1.8;
+  }
+
+  /* 本文縦組み */
+  .body-col {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 8.5pt;
+    line-height: 2.1;
+    letter-spacing: 0.1em;
+    white-space: pre-wrap;
+    font-weight: 300;
+    color: #c8b8a8;
+    flex: 1;
+  }
+
+  /* フッター */
+  .footer {
+    margin-top: 6mm;
+    padding-top: 3mm;
+    border-top: 0.3pt solid rgba(200,168,122,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-brand {
+    font-size: 5pt;
+    letter-spacing: 0.4em;
+    color: #3a2818;
+    font-family: 'Courier New', monospace;
+  }
+
+  .footer-date {
+    font-size: 5.5pt;
+    color: #4a3828;
+    letter-spacing: 0.08em;
+  }
+
+  /* 装飾：コーナーライン */
+  .corner {
+    position: absolute;
+    width: 6mm;
+    height: 6mm;
+    opacity: 0.25;
+  }
+  .corner-tl { top: 8mm; left: 8mm; border-top: 0.5pt solid #c8a87a; border-left: 0.5pt solid #c8a87a; }
+  .corner-tr { top: 8mm; right: 8mm; border-top: 0.5pt solid #c8a87a; border-right: 0.5pt solid #c8a87a; }
+  .corner-bl { bottom: 8mm; left: 8mm; border-bottom: 0.5pt solid #c8a87a; border-left: 0.5pt solid #c8a87a; }
+  .corner-br { bottom: 8mm; right: 8mm; border-bottom: 0.5pt solid #c8a87a; border-right: 0.5pt solid #c8a87a; }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- 角飾り -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <!-- メタ -->
+  <div class="meta">
+    <div class="brand">ONLY YOUR STORY</div>
+    <div class="category">{{CATEGORY}}</div>
+  </div>
+
+  <!-- 本文 -->
+  <div class="story-area">
+    <div class="title-col">{{TITLE}}</div>
+    <div class="body-col">{{BODY}}</div>
+  </div>
+
+  <!-- フッター -->
+  <div class="footer">
+    <div class="footer-brand">ONLY YOUR STORY — PERMANENT EDITION</div>
+    <div class="footer-date">{{DATE}} 永久保存</div>
+  </div>
+</div>
+</body>
+</html>

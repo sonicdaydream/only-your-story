@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0e0a06;
+  --text: #c8b8a8;
+  --accent: #c8a87a;
+  --accent-soft: #8a6840;
+  --text-muted: #6a5848;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* 縦書き */
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  line-height: 2.2;
+  letter-spacing: 0.12em;
+}
+
+/* アニメーション */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 0.5; }
+}
+
+@keyframes slide-vertical {
+  0%   { top: -100%; }
+  100% { top:  100%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
