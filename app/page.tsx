@@ -784,7 +784,7 @@ export default function Home() {
                 <p style={{ fontSize: "0.7rem", color: t.textMuted, letterSpacing: "0.08em", lineHeight: 2, textAlign: "center" }}>
                   本棚に追加されました。
                 </p>
-                <a href="https://buymeacoffee.com/placeholder" target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: t.accent, fontFamily: MINCHO, letterSpacing: "0.1em", textDecoration: "none", border: `1px solid ${t.accent}40`, padding: "0.65rem 1.4rem", display: "inline-block" }}>
+                <a href="https://buymeacoffee.com/rockworks" target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: t.accent, fontFamily: MINCHO, letterSpacing: "0.1em", textDecoration: "none", border: `1px solid ${t.accent}40`, padding: "0.65rem 1.4rem", display: "inline-block" }}>
                   ☕ この物語を気に入ったら応援してね
                 </a>
                 <button onClick={() => { setShowSave(false); setSaveDone(false); }} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.65rem", fontFamily: MINCHO, letterSpacing: "0.1em", padding: "0.3rem", cursor: "pointer" }}>

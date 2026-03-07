@@ -186,7 +186,7 @@ export default async function StoryPage({ params }: Props) {
         {/* 投げ銭リンク */}
         <div style={{ margin: "1rem 1.5rem 0", textAlign: "center" }}>
           <a
-            href="https://buymeacoffee.com/placeholder"
+            href="https://buymeacoffee.com/rockworks"
             target="_blank"
             rel="noopener noreferrer"
             style={{
