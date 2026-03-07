@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { CATEGORIES, CONCEPT_SECTIONS, DEFAULT_THEME, type Category } from "@/lib/categories";
-import { handleSave } from "@/lib/save-handler";
 
 const MINCHO = "var(--font-noto-serif-jp), 'Yu Mincho', 'Hiragino Mincho ProN', Georgia, serif";
 
@@ -92,7 +91,8 @@ export default function Home() {
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [genCount, setGenCount] = useState(0);
   const remaining = DAILY_LIMIT - genCount;
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveDone, setSaveDone] = useState(false);
   const [savedStories, setSavedStories] = useState<SavedStory[]>([]);
   const [shelfStory, setShelfStory] = useState<SavedStory | null>(null);
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
@@ -163,6 +163,7 @@ export default function Home() {
     setError("");
     setShared(false);
     setShareUrl("");
+    setSaveDone(false);
 
     let idx = 0;
     setLoadingMsg(LOADING_MSGS[0]);
@@ -213,6 +214,42 @@ export default function Home() {
     cat
       ? `「Only Your Story」で${cat.label}の物語を読みました。\n${title ? `「${title}」\n` : ""}シェアするまで世界に存在しなかった物語。\n\n${url}\n\n#OnlyYourStory`
       : "";
+
+  const freeSave = async () => {
+    if (!cat || !story || saveLoading) return;
+    setSaveLoading(true);
+    try {
+      const res = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, story, category: cat.label, categoryId: cat.id }),
+      });
+      if (!res.ok) throw new Error("failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title || "only-your-story"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      // 本棚に追加
+      const entry: SavedStory = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        title,
+        content: story,
+        categoryId: cat.id,
+        savedAt: Date.now(),
+      };
+      const updated = [entry, ...savedStories];
+      persistStories(updated);
+      setSavedStories(updated);
+      setSaveDone(true);
+    } catch {
+      // silent
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   const publishStory = async (): Promise<string> => {
     if (shareUrl) return shareUrl;
@@ -722,23 +759,39 @@ export default function Home() {
 
       {/* ━━━ 保存モーダル ━━━ */}
       {showSave && cat && (
-        <div onClick={() => setShowSave(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
+        <div onClick={() => { if (!saveLoading) setShowSave(false); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#0e0a08", borderTop: `1px solid ${t.accent}30`, padding: "2rem 1.8rem 2.5rem", width: "100%", maxWidth: 480, animation: "modal-in 0.3s ease", boxShadow: `0 -20px 60px ${t.accent}12` }}>
-            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: "1.5rem", marginBottom: "0.8rem" }}>📖</div>
-              <p style={{ fontSize: "0.82rem", color: t.text, lineHeight: 1.9, letterSpacing: "0.08em" }}>
-                この物語を本棚に永久保存しますか？<br />
-                <span style={{ color: t.textMuted, fontSize: "0.72rem" }}>読まれなくなっても、あなたの手元に残り続けます。</span>
-              </p>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-              <button onClick={() => cat && handleSave({ title, story, categoryId: cat.id, categoryLabel: cat.label, accent: cat.theme.accent, setLoading: setCheckoutLoading })} disabled={checkoutLoading} style={{ background: checkoutLoading ? `${t.accent}60` : t.accent, border: "none", color: "#000", padding: "1rem", fontSize: "0.8rem", letterSpacing: "0.15em", fontFamily: MINCHO, fontWeight: 700, cursor: checkoutLoading ? "wait" : "pointer", transition: "background 0.3s" }}>
-                {checkoutLoading ? "決済画面へ移動中…" : "￥50 で永久保存する"}
-              </button>
-              <button onClick={() => setShowSave(false)} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.68rem", fontFamily: MINCHO, letterSpacing: "0.1em", padding: "0.5rem", cursor: "pointer" }}>
-                閉じる
-              </button>
-            </div>
+            {!saveDone ? (
+              <>
+                <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+                  <p style={{ fontSize: "0.82rem", color: t.text, lineHeight: 1.9, letterSpacing: "0.08em" }}>
+                    この物語をPDFとして保存し、<br />
+                    <span style={{ color: t.textMuted, fontSize: "0.72rem" }}>本棚にも追加されます。</span>
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+                  <button onClick={freeSave} disabled={saveLoading} style={{ background: saveLoading ? `${t.accent}60` : t.accent, border: "none", color: "#000", padding: "1rem", fontSize: "0.8rem", letterSpacing: "0.15em", fontFamily: MINCHO, fontWeight: 700, cursor: saveLoading ? "wait" : "pointer", transition: "background 0.3s" }}>
+                    {saveLoading ? "PDFを生成中…" : "PDFを保存する（無料）"}
+                  </button>
+                  <button onClick={() => setShowSave(false)} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.68rem", fontFamily: MINCHO, letterSpacing: "0.1em", padding: "0.5rem", cursor: "pointer" }}>
+                    閉じる
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.2rem" }}>
+                <div style={{ color: t.accent, fontSize: "0.82rem", letterSpacing: "0.12em", fontFamily: MINCHO }}>✦ 保存しました</div>
+                <p style={{ fontSize: "0.7rem", color: t.textMuted, letterSpacing: "0.08em", lineHeight: 2, textAlign: "center" }}>
+                  本棚に追加されました。
+                </p>
+                <a href="https://buymeacoffee.com/placeholder" target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.72rem", color: t.accent, fontFamily: MINCHO, letterSpacing: "0.1em", textDecoration: "none", border: `1px solid ${t.accent}40`, padding: "0.65rem 1.4rem", display: "inline-block" }}>
+                  ☕ この物語を気に入ったら応援してね
+                </a>
+                <button onClick={() => { setShowSave(false); setSaveDone(false); }} style={{ background: "transparent", border: "none", color: t.textMuted, fontSize: "0.65rem", fontFamily: MINCHO, letterSpacing: "0.1em", padding: "0.3rem", cursor: "pointer" }}>
+                  閉じる
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

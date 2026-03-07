@@ -183,6 +183,28 @@ export default async function StoryPage({ params }: Props) {
         {/* 広告枠 */}
         <AdUnit />
 
+        {/* 投げ銭リンク */}
+        <div style={{ margin: "1rem 1.5rem 0", textAlign: "center" }}>
+          <a
+            href="https://buymeacoffee.com/placeholder"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: "0.68rem",
+              color: t.textMuted,
+              fontFamily: MINCHO,
+              letterSpacing: "0.1em",
+              textDecoration: "none",
+              border: `1px solid ${t.accent}25`,
+              padding: "0.6rem 1.2rem",
+              display: "inline-block",
+              transition: "color 0.2s, border-color 0.2s",
+            }}
+          >
+            ☕ この物語を気に入ったら応援してね
+          </a>
+        </div>
+
         {/* フッター */}
         <div
           style={{
