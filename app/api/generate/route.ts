@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const { count, error } = await supabase
       .from("generation_logs")
       .select("*", { count: "exact", head: true })
-      .eq("ip", ip)
+      .eq("ip_address", ip)
       .gte("generated_at", getJSTDayStartUTC());
     if (error) console.error("[GET /api/generate] SELECT error:", error);
     const used = count ?? 0;
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const { count, error: countError } = await supabase
       .from("generation_logs")
       .select("*", { count: "exact", head: true })
-      .eq("ip", ip)
+      .eq("ip_address", ip)
       .gte("generated_at", getJSTDayStartUTC());
 
     if (countError) console.error("[POST /api/generate] SELECT error:", JSON.stringify(countError));
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     // 生成ログを記録
     const { data: insertData, error: insertError } = await supabase
       .from("generation_logs")
-      .insert({ ip })
+      .insert({ ip_address: ip })
       .select();
     console.log("Supabase insert result: " + JSON.stringify(insertData));
     if (insertError) {
