@@ -17,6 +17,31 @@ function getJSTDayStartUTC(): string {
   return new Date(dayStartMs).toISOString();
 }
 
+function getIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "127.0.0.1"
+  );
+}
+
+/** GET: IPベースの本日の生成数を返す */
+export async function GET(req: NextRequest) {
+  try {
+    const ip = getIp(req);
+    const { count } = await supabase
+      .from("generation_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("ip", ip)
+      .gte("generated_at", getJSTDayStartUTC());
+    const used = count ?? 0;
+    return NextResponse.json({ used, remaining: Math.max(0, DAILY_LIMIT - used) });
+  } catch {
+    // Supabase障害時はデフォルト値を返す
+    return NextResponse.json({ used: 0, remaining: DAILY_LIMIT });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { categoryId } = await req.json();
@@ -25,10 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid categoryId" }, { status: 400 });
     }
 
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      req.headers.get("x-real-ip") ??
-      "127.0.0.1";
+    const ip = getIp(req);
 
     // IP別の当日生成数チェック（失敗時はスルーして生成を許可）
     const { count } = await supabase

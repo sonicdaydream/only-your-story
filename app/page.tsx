@@ -99,13 +99,23 @@ export default function Home() {
 
   const t = cat?.theme ?? DEFAULT_THEME;
 
-  // 初回訪問チェック + 保存済み物語ロード
+  // 初回訪問チェック + 保存済み物語ロード + サーバーから残り回数を取得
   useEffect(() => {
     try {
       if (localStorage.getItem("oys_visited")) setScreen("select");
     } catch {}
     setSavedStories(loadSavedStories());
+    // localStorageを初期値として使い、その後サーバーの値で上書き
     setGenCount(loadGenCount());
+    fetch("/api/generate")
+      .then((r) => r.json())
+      .then(({ used }) => {
+        if (typeof used === "number") {
+          setGenCount(used);
+          saveGenCount(used);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const downloadPdf = async (s: SavedStory, e: React.MouseEvent) => {
@@ -197,9 +207,20 @@ export default function Home() {
       }
       setTitle(parsedTitle);
       setStory(stripMarkdown(lines.slice(bodyStart).join("\n")));
-      const next = loadGenCount() + 1;
-      setGenCount(next);
-      saveGenCount(next);
+      // サーバーから最新の生成数を取得して同期
+      fetch("/api/generate")
+        .then((r) => r.json())
+        .then(({ used }) => {
+          if (typeof used === "number") {
+            setGenCount(used);
+            saveGenCount(used);
+          }
+        })
+        .catch(() => {
+          const next = loadGenCount() + 1;
+          setGenCount(next);
+          saveGenCount(next);
+        });
     } catch {
       clearInterval(mi);
       setError("生成に失敗しました。もう一度お試しください。");
