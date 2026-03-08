@@ -1,7 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { CATEGORIES } from "@/lib/categories";
-import { supabase } from "@/lib/supabase";
+
+// API Routes ではサービスロールキーを使用（RLSをバイパスしてINSERT/SELECTを確実に行う）
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const ALLOWED_IDS = new Set(CATEGORIES.map((c) => c.id));
@@ -29,15 +35,18 @@ function getIp(req: NextRequest): string {
 export async function GET(req: NextRequest) {
   try {
     const ip = getIp(req);
-    const { count } = await supabase
+    console.log("[GET /api/generate] ip:", ip);
+    const { count, error } = await supabase
       .from("generation_logs")
       .select("*", { count: "exact", head: true })
       .eq("ip", ip)
       .gte("generated_at", getJSTDayStartUTC());
+    if (error) console.error("[GET /api/generate] SELECT error:", error);
     const used = count ?? 0;
+    console.log("[GET /api/generate] used:", used);
     return NextResponse.json({ used, remaining: Math.max(0, DAILY_LIMIT - used) });
-  } catch {
-    // Supabase障害時はデフォルト値を返す
+  } catch (err) {
+    console.error("[GET /api/generate] exception:", err);
     return NextResponse.json({ used: 0, remaining: DAILY_LIMIT });
   }
 }
@@ -51,15 +60,20 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getIp(req);
+    console.log("[POST /api/generate] ip:", ip, "categoryId:", categoryId);
 
-    // IP別の当日生成数チェック（失敗時はスルーして生成を許可）
-    const { count } = await supabase
+    // IP別の当日生成数チェック
+    const { count, error: countError } = await supabase
       .from("generation_logs")
       .select("*", { count: "exact", head: true })
       .eq("ip", ip)
       .gte("generated_at", getJSTDayStartUTC());
 
+    if (countError) console.error("[POST /api/generate] SELECT error:", countError);
+    console.log("[POST /api/generate] today count:", count);
+
     if ((count ?? 0) >= DAILY_LIMIT) {
+      console.log("[POST /api/generate] limit reached for ip:", ip);
       return NextResponse.json({ error: "limit_reached" }, { status: 429 });
     }
 
@@ -77,8 +91,15 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("");
 
-    // 生成ログを記録（非同期・失敗しても無視）
-    supabase.from("generation_logs").insert({ ip }).then(() => {});
+    // 生成ログを記録（awaitして結果を確認）
+    const { error: insertError } = await supabase
+      .from("generation_logs")
+      .insert({ ip });
+    if (insertError) {
+      console.error("[POST /api/generate] INSERT error:", insertError);
+    } else {
+      console.log("[POST /api/generate] INSERT success for ip:", ip);
+    }
 
     return NextResponse.json({ text });
   } catch (err) {
