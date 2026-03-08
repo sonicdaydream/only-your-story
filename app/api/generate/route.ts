@@ -60,7 +60,9 @@ export async function POST(req: NextRequest) {
     }
 
     const ip = getIp(req);
-    console.log("[POST /api/generate] ip:", ip, "categoryId:", categoryId);
+    console.log("IP address: " + ip);
+    console.log("[POST /api/generate] categoryId:", categoryId);
+    console.log("[POST /api/generate] SERVICE_ROLE_KEY set:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 
     // IP別の当日生成数チェック
     const { count, error: countError } = await supabase
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
       .eq("ip", ip)
       .gte("generated_at", getJSTDayStartUTC());
 
-    if (countError) console.error("[POST /api/generate] SELECT error:", countError);
+    if (countError) console.error("[POST /api/generate] SELECT error:", JSON.stringify(countError));
     console.log("[POST /api/generate] today count:", count);
 
     if ((count ?? 0) >= DAILY_LIMIT) {
@@ -91,14 +93,14 @@ export async function POST(req: NextRequest) {
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("");
 
-    // 生成ログを記録（awaitして結果を確認）
-    const { error: insertError } = await supabase
+    // 生成ログを記録
+    const { data: insertData, error: insertError } = await supabase
       .from("generation_logs")
-      .insert({ ip });
+      .insert({ ip })
+      .select();
+    console.log("Supabase insert result: " + JSON.stringify(insertData));
     if (insertError) {
-      console.error("[POST /api/generate] INSERT error:", insertError);
-    } else {
-      console.log("[POST /api/generate] INSERT success for ip:", ip);
+      console.error("Supabase insert error: " + JSON.stringify(insertError));
     }
 
     return NextResponse.json({ text });
