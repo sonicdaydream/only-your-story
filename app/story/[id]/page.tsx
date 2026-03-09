@@ -26,6 +26,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+function calcDaysLeft(story: SharedStory): number {
+  const base = story.last_read_at ?? story.created_at;
+  const expiresAt = new Date(base).getTime() + 30 * 24 * 60 * 60 * 1000;
+  return Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
 export default async function StoryPage({ params }: Props) {
   const { id } = await params;
 
@@ -39,12 +45,9 @@ export default async function StoryPage({ params }: Props) {
 
   const s = story as SharedStory;
 
-  // last_read_at を更新（非同期で投げるだけ、待たない）
-  supabase
-    .from("stories")
-    .update({ last_read_at: new Date().toISOString() })
-    .eq("id", id)
-    .then(() => {});
+  // read_count +1 と last_read_at 更新を原子的に実行（非同期・待たない）
+  // 事前に Supabase で increment_read_count RPC を作成する必要あり
+  supabase.rpc("increment_read_count", { story_id: id }).then(() => {});
 
   const cat = getCategoryById(s.category);
   const t = cat?.theme ?? DEFAULT_THEME;
@@ -54,6 +57,10 @@ export default async function StoryPage({ params }: Props) {
     month: "long",
     day: "numeric",
   });
+
+  // 削除予告（更新前の last_read_at を基準にした残り日数）
+  const daysLeft = calcDaysLeft(s);
+  const isUrgent = daysLeft <= 7;
 
   return (
     <div
@@ -178,6 +185,46 @@ export default async function StoryPage({ params }: Props) {
           >
             {s.content}
           </div>
+        </div>
+
+        {/* 削除予告 */}
+        <div
+          style={{
+            margin: "0 1.5rem",
+            padding: "0.5rem 0.8rem",
+            borderLeft: `2px solid ${isUrgent ? "#cc2200" : t.accent}40`,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.6rem",
+              color: isUrgent ? "#cc4422" : t.textMuted,
+              fontFamily: MINCHO,
+              letterSpacing: "0.1em",
+              lineHeight: 1.8,
+            }}
+          >
+            {daysLeft <= 0
+              ? "この物語はまもなく朽ちます"
+              : isUrgent
+              ? `あと ${daysLeft} 日で、この物語は朽ちます`
+              : `読まれなければ、あと ${daysLeft} 日で朽ちます`}
+            {isUrgent && daysLeft > 0 && (
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.55rem",
+                  color: `${t.textMuted}`,
+                  marginTop: "0.2rem",
+                }}
+              >
+                — 読むたびに、30日延命される
+              </span>
+            )}
+          </span>
         </div>
 
         {/* 広告枠 */}
