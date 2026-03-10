@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: category.system,
-      messages: [{ role: "user", content: category.prompt }],
+      messages: [{ role: "user", content: category.getPrompt() }],
     });
 
     const text = message.content
