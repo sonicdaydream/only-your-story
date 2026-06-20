@@ -21,7 +21,7 @@ AIが生成する一期一会の物語体験アプリ。
 
 ### バックエンド
 - **API**: Next.js API Routes (Edge Runtime推奨)
-- **AI**: Claude API (claude-sonnet-4-20250514) または OpenAI API
+- **AI**: Claude API (claude-sonnet-4-6) または OpenAI API
 - **Database**: Supabase（シェアされた物語の保存、朽ちる仕組み）
 - **Payment**: Stripe（50円保存機能）
 

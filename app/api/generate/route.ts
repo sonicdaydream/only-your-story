@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const category = CATEGORIES.find((c) => c.id === categoryId)!;
 
     const message = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: category.system,
       messages: [{ role: "user", content: category.getPrompt() }],
